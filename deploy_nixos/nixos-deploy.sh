@@ -20,8 +20,6 @@ sshOpts=(
   -o "GlobalKnownHostsFile=/dev/null"
   # interactive authentication is not possible
   -o "BatchMode=yes"
-  # verbose output for easier debugging
-  -v
 )
 scpOpts=("${sshOpts[@]}")
 
