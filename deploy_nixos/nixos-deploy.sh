@@ -30,11 +30,11 @@ outPath="$2"
 targetHost="$3"
 targetPort="$4"
 buildOnTarget="$5"
-sshPrivateKey="$6"
-packedKeysJson="$7"
-action="$8"
-deleteOlderThan="$9"
-shift 9
+sshPrivateKey="${sshPrivateKey:-}"
+packedKeysJson="$6"
+action="$7"
+deleteOlderThan="$8"
+shift 8
 
 # remove the last argument
 set -- "${@:1:$(($# - 1))}"

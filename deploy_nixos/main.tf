@@ -160,7 +160,9 @@ resource "null_resource" "deploy_nixos" {
 
   # do the actual deployment
   provisioner "local-exec" {
-    environment = var.deploy_environment
+    environment = merge(var.deploy_environment, {
+      sshPrivateKey = local.ssh_private_key
+    })
     interpreter = concat([
       "${path.module}/nixos-deploy.sh",
       data.external.nixos-instantiate.result["drv_path"],
@@ -168,7 +170,6 @@ resource "null_resource" "deploy_nixos" {
       "${var.target_user}@${var.target_host}",
       var.target_port,
       local.build_on_target,
-      local.ssh_private_key == "" ? "-" : local.ssh_private_key,
       local.packed_keys_json,
       "switch",
       var.delete_older_than,
