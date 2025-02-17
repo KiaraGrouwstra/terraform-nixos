@@ -34,11 +34,17 @@ sshPrivateKey="${sshPrivateKey:-}"
 packedKeysJson="$6"
 action="$7"
 deleteOlderThan="$8"
-shift 8
+performGC="$9"
+verboseSSH="${10}"
+shift 10
 
 # remove the last argument
 set -- "${@:1:$(($# - 1))}"
 buildArgs+=("$@")
+
+if [[ "${verboseSSH:-false}" == true ]]; then
+  sshOpts+=( -v )
+fi
 
 sshOpts+=( -p "${targetPort}" )
 scpOpts+=( -P "${targetPort}" )
@@ -149,4 +155,6 @@ log "collecting old nix derivations"
 # Deliberately not quoting $deleteOlderThan so the user can configure something like "1 2 3" 
 # to keep generations with those numbers
 targetHostCmd "nix-env" "--profile" "$profile" "--delete-generations" $deleteOlderThan
-targetHostCmd "nix-store" "--gc"
+if [[ "${performGC:-true}" == true ]]; then
+  targetHostCmd "nix-store" "--gc"
+fi
