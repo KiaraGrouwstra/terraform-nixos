@@ -10,7 +10,7 @@ shift 4
 
 
 command=(nix-instantiate --show-trace --expr '
-  { system, configuration, hermetic ? false, flake ? false, ... }:
+  { system, configuration, hermetic ? false, flake ? false, specialArgs ? {}, ... }:
   let
     importFromFlake = { nixosConfig }:
         let
@@ -28,7 +28,10 @@ command=(nix-instantiate --show-trace --expr '
          then importFromFlake { nixosConfig = configuration; }
          else if hermetic
           then import configuration
-          else import <nixpkgs/nixos> { inherit system configuration; };
+          else import <nixpkgs/nixos/lib/eval-config.nix> {
+            inherit system specialArgs;
+            modules = [ configuration ];
+          };
   in {
     inherit (builtins) currentSystem;
 
