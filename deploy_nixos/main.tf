@@ -188,27 +188,31 @@ resource "null_resource" "deploy_nixos" {
 
   # do the actual deployment
   provisioner "local-exec" {
-    interpreter = concat([
-      "${path.module}/nixos-deploy.sh",
-      data.external.nixos-instantiate.result["drv_path"],
-      data.external.nixos-instantiate.result["out_path"],
-      "${var.target_user}@${var.target_host}",
-      var.target_port,
-      local.build_on_target,
-      local.ssh_private_key == "" ? "-" : local.ssh_private_key,
-      "switch",
-      var.delete_older_than,
-      ],
-      local.extra_build_args
-    )
-    command = "ignoreme"
+    # Use a standard interpreter like bash
+    interpreter = ["/bin/bash", "-c"]
+
+    # Construct the full command string, including arguments and redirection
+    # NOTE: Careful quoting is needed if arguments can contain spaces or special chars.
+    # Using environment variables can sometimes be cleaner for passing complex args.
+    command = <<-EOT
+      "${path.module}/nixos-deploy.sh" \
+        "${data.external.nixos-instantiate.result["drv_path"]}" \
+        "${data.external.nixos-instantiate.result["out_path"]}" \
+        "${var.target_user}@${var.target_host}" \
+        "${var.target_port}" \
+        "${local.build_on_target}" \
+        "${local.ssh_private_key == "" ? "-" : local.ssh_private_key}" \
+        "switch" \
+        "${var.delete_older_than}" \
+        ${join(" ", [for arg in local.extra_build_args : "\"${arg}\""])} \
+        2>&1
+    EOT
   }
 }
 
 # --------------------------------------------------------------------------
 
-output "id" {
-  description = "random ID that changes on every nixos deployment"
-  value       = null_resource.deploy_nixos.id
+output "result" {
+  value = module.system-build.result
 }
 

@@ -3,7 +3,6 @@
 #
 # Usage: nixos-deploy.sh <drvPath> <host> <switch-action> [<build-opts>] ignoreme
 set -euo pipefail # Exit immediately if a command exits with a non-zero status.
-exec 2>&1 # Redirect all subsequent stderr of this script to stdout
 set -x  # Start tracing commands (output now goes to stdout)
 
 ### Defaults ###
