@@ -2,7 +2,7 @@
 # nixos-deploy deploys a nixos-instantiate-generated drvPath to a target host
 #
 # Usage: nixos-deploy.sh <drvPath> <host> <switch-action> [<build-opts>] ignoreme
-set -euo pipefail
+set -xeuo pipefail
 
 ### Defaults ###
 
