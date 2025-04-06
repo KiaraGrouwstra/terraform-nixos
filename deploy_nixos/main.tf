@@ -207,8 +207,7 @@ resource "null_resource" "deploy_nixos" {
 
 # --------------------------------------------------------------------------
 
-output "id" {
-  description = "random ID that changes on every nixos deployment"
-  value       = null_resource.deploy_nixos.id
+output "result" {
+  value = data.external.nixos-instantiate.result
 }
 
