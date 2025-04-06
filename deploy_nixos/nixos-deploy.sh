@@ -24,7 +24,7 @@ sshOpts=(
   # limit tries
   -o "MaxAuthTries=1"
   # verbose output for easier debugging
-  -v
+  -vvv
 )
 
 ###  Argument parsing ###
