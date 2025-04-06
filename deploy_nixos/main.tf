@@ -213,6 +213,7 @@ resource "null_resource" "deploy_nixos" {
 # --------------------------------------------------------------------------
 
 output "result" {
-  value = module.system-build.result
+  description = "random ID that changes on every nixos deployment"
+  value       = null_resource.deploy_nixos.id
 }
 
