@@ -111,6 +111,12 @@ variable "delete_older_than" {
   default     = "+1"
 }
 
+variable "deploy_environment" {
+  type        = map(string)
+  description = "Extra environment variables to be set during deployment."
+  default     = {}
+}
+
 # --------------------------------------------------------------------------
 
 locals {
@@ -188,6 +194,7 @@ resource "null_resource" "deploy_nixos" {
 
   # do the actual deployment
   provisioner "local-exec" {
+    environment = var.deploy_environment
     interpreter = concat([
       "${path.module}/nixos-deploy.sh",
       data.external.nixos-instantiate.result["drv_path"],
