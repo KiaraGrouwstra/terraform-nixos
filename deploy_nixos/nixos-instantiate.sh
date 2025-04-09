@@ -27,8 +27,16 @@ command=(nix-instantiate --show-trace --expr '
       if flake
          then importFromFlake { nixosConfig = configuration; }
          else if hermetic
-          then import configuration
-          else import <nixpkgs/nixos> { inherit system configuration; };
+          then
+            (
+              if builtins.isString configuration
+              # case: nixos_config i.e. file path
+              then import configuration
+              # case: config i.e. the module expression itself
+              else configuration
+            )
+          else
+            import <nixpkgs/nixos> { inherit system configuration; };
   in {
     inherit (builtins) currentSystem;
 
