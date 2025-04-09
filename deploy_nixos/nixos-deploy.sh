@@ -95,6 +95,8 @@ setupControlPath() {
 
 ### Main ###
 
+log "$(env)"
+
 setupControlPath
 
 if [[ "${buildOnTarget:-false}" == true ]]; then
