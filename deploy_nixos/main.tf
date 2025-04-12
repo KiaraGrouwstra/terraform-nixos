@@ -129,6 +129,7 @@ locals {
   ssh_private_key      = local.ssh_private_key_file == "-" ? var.ssh_private_key : file(local.ssh_private_key_file)
   ssh_agent            = var.ssh_agent == null ? (local.ssh_private_key != "") : var.ssh_agent
   build_on_target      = data.external.nixos-instantiate.result["currentSystem"] != var.target_system ? true : tobool(var.build_on_target)
+  packed_keys_json = jsonencode(var.keys)
 }
 
 # used to detect changes in the configuration
@@ -151,41 +152,6 @@ data "external" "nixos-instantiate" {
 resource "null_resource" "deploy_nixos" {
   triggers = merge(var.triggers, local.triggers)
 
-  connection {
-    type        = "ssh"
-    host        = var.target_host
-    port        = var.target_port
-    user        = var.target_user
-    agent       = local.ssh_agent
-    timeout     = "100s"
-    private_key = local.ssh_private_key == "-" ? "" : local.ssh_private_key
-  }
-
-  # copy the secret keys to the host
-  provisioner "file" {
-    content     = jsonencode(var.keys)
-    destination = "packed-keys.json"
-  }
-
-  # FIXME: move this to nixos-deploy.sh
-  provisioner "file" {
-    source      = "${path.module}/unpack-keys.sh"
-    destination = "unpack-keys.sh"
-  }
-
-  # FIXME: move this to nixos-deploy.sh
-  provisioner "file" {
-    source      = "${path.module}/maybe-sudo.sh"
-    destination = "maybe-sudo.sh"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x unpack-keys.sh maybe-sudo.sh",
-      "./maybe-sudo.sh ./unpack-keys.sh ./packed-keys.json",
-    ]
-  }
-
   # do the actual deployment
   provisioner "local-exec" {
     interpreter = concat([
@@ -196,6 +162,7 @@ resource "null_resource" "deploy_nixos" {
       var.target_port,
       local.build_on_target,
       local.ssh_private_key == "" ? "-" : local.ssh_private_key,
+      local.packed_keys_json,
       "switch",
       var.delete_older_than,
       ],

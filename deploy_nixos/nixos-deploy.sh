@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # nixos-deploy deploys a nixos-instantiate-generated drvPath to a target host
 #
-# Usage: nixos-deploy.sh <drvPath> <host> <switch-action> [<build-opts>] ignoreme
+# Usage: nixos-deploy.sh <drvPath> <outPath> <targetHost> <targetPort> <buildOnTarget> <sshPrivateKey> <packedKeysJson> <switch-action> <deleteOlderThan> [<build-opts>] ignoreme
 set -euo pipefail
 
 ### Defaults ###
@@ -23,6 +23,7 @@ sshOpts=(
   # verbose output for easier debugging
   -v
 )
+scpOpts=("${sshOpts[@]}")
 
 ###  Argument parsing ###
 
@@ -32,15 +33,17 @@ targetHost="$3"
 targetPort="$4"
 buildOnTarget="$5"
 sshPrivateKey="$6"
-action="$7"
-deleteOlderThan="$8"
-shift 8
+packedKeysJson="$7"
+action="$8"
+deleteOlderThan="$9"
+shift 9
 
 # remove the last argument
 set -- "${@:1:$(($# - 1))}"
 buildArgs+=("$@")
 
 sshOpts+=( -p "${targetPort}" )
+scpOpts+=( -P "${targetPort}" )
 
 workDir=$(mktemp -d)
 trap 'rm -rf "$workDir"' EXIT
@@ -48,8 +51,10 @@ trap 'rm -rf "$workDir"' EXIT
 if [[ -n "${sshPrivateKey}" && "${sshPrivateKey}" != "-" ]]; then
   sshPrivateKeyFile="$workDir/ssh_key"
   echo "$sshPrivateKey" > "$sshPrivateKeyFile"
-  chmod 0700 "$sshPrivateKeyFile"
-  sshOpts+=( -o "IdentityFile=${sshPrivateKeyFile}" )
+  chmod 0600 "$sshPrivateKeyFile"
+  flag="IdentityFile=${sshPrivateKeyFile}"
+  sshOpts+=( -o "$flag" )
+  scpOpts+=( -o "$flag" )
 fi
 
 ### Functions ###
@@ -62,6 +67,11 @@ copyToTarget() {
   NIX_SSHOPTS="${sshOpts[*]}" nix-copy-closure --to "$targetHost" "$@"
 }
 
+remoteTempDir=""
+makeRemoteTempDir() {
+  remoteTempDir=$(ssh "${sshOpts[@]}" "$targetHost" "mktemp -d")
+}
+
 # assumes that passwordless sudo is enabled on the server
 targetHostCmd() {
   # ${*@Q} escapes the arguments losslessly into space-separted quoted strings.
@@ -70,16 +80,16 @@ targetHostCmd() {
   # Tested with OpenSSH_7.9p1.
   #
   # shellcheck disable=SC2029
-  ssh "${sshOpts[@]}" "$targetHost" "./maybe-sudo.sh ${*@Q}"
+  ssh "${sshOpts[@]}" "$targetHost" "'$remoteTempDir/maybe-sudo.sh' ${*@Q}"
 }
 
 # Setup a temporary ControlPath for this session. This speeds-up the
 # operations by not re-creating SSH sessions between each command. At the end
 # of the run, the session is forcefully terminated.
 setupControlPath() {
-  sshOpts+=(
-    -o "ControlPath=$workDir/ssh_control"
-  )
+  local flag="ControlPath=$workDir/ssh_control"
+  sshOpts+=(-o "$flag")
+  scpOpts+=(-o "$flag")
   cleanupControlPath() {
     local ret=$?
     # Avoid failing during the shutdown
@@ -96,6 +106,17 @@ setupControlPath() {
 ### Main ###
 
 setupControlPath
+
+makeRemoteTempDir
+unpackKeysPath="$remoteTempDir/unpack-keys.sh"
+maybeSudoPath="$remoteTempDir/maybe-sudo.sh"
+packedKeysPath="$remoteTempDir/packed-keys.json"
+scriptDir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+scp "${scpOpts[@]}" "$scriptDir/unpack-keys.sh" "$targetHost:$unpackKeysPath"
+scp "${scpOpts[@]}" "$scriptDir/maybe-sudo.sh" "$targetHost:$maybeSudoPath"
+echo "$packedKeysJson" | ssh "${sshOpts[@]}" "$targetHost" "cat > '$packedKeysPath'"
+ssh "${sshOpts[@]}" "$targetHost" "chmod +x '$maybeSudoPath' '$unpackKeysPath' 1>/dev/null"
+ssh "${sshOpts[@]}" "$targetHost" "'$maybeSudoPath' '$unpackKeysPath' '$packedKeysPath' 1>/dev/null"
 
 if [[ "${buildOnTarget:-false}" == true ]]; then
 
