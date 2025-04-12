@@ -5,28 +5,14 @@ set -euo pipefail
 nix_path=$1
 config=$2
 config_pwd=$3
-flake=$4
-shift 4
+shift 3
 
 
 command=(nix-instantiate --show-trace --expr '
-  { system, configuration, hermetic ? false, flake ? false, ... }:
+  { system, configuration, hermetic ? false, ... }:
   let
-    importFromFlake = { nixosConfig }:
-        let
-          flake = (import (
-                    fetchTarball {
-                      url = "https://github.com/edolstra/flake-compat/archive/99f1c2157fba4bfe6211a321fd0ee43199025dbf.tar.gz";
-                      sha256 = "0x2jn3vrawwv9xp15674wjz9pixwjyj3j771izayl962zziivbx2"; }
-                  ) {
-                    src =  ./.;
-                  }).defaultNix;
-        in
-          builtins.getAttr nixosConfig flake.nixosConfigurations;
     os =
-      if flake
-         then importFromFlake { nixosConfig = configuration; }
-         else if hermetic
+          if hermetic
           then
             (
               if builtins.isString configuration
@@ -65,11 +51,7 @@ if [[ -f "$config" ]]; then
   config=$($readlink "$config")
   command+=(--argstr configuration "$config")
 else
-  if $flake; then
-    command+=(--argstr configuration "$config" --arg flake true)
-  else
     command+=(--arg configuration "$config")
-  fi
 fi
 
 # add all extra CLI args as extra build arguments
